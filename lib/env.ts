@@ -22,7 +22,9 @@ export function env(): Env {
     const msg = parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
     throw new Error(`Configuración inválida. Revisa tu archivo .env:\n${msg}`);
   }
-  if (parsed.data.NODE_ENV === "production" && !parsed.data.APP_URL.startsWith("https://")) {
+  const host = new URL(parsed.data.APP_URL).hostname;
+  const isLocal = host === "localhost" || host === "127.0.0.1";
+  if (parsed.data.NODE_ENV === "production" && !parsed.data.APP_URL.startsWith("https://") && !isLocal) {
     throw new Error("En producción APP_URL debe usar https://");
   }
   cached = parsed.data;

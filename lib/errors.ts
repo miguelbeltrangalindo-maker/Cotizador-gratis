@@ -25,6 +25,6 @@ export const conflict = (msg: string) => new AppError("CONFLICT", msg);
 export const validation = (msg: string, fieldErrors?: Record<string, string>) =>
   new AppError("VALIDATION_ERROR", msg, fieldErrors);
 
-export type ActionResult<T = undefined> =
+export type ActionResult<T = void> =
   | { ok: true; data: T }
   | { ok: false; code: ErrorCode; message: string; fieldErrors?: Record<string, string>; errorId?: string };

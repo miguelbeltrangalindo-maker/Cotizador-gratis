@@ -8,24 +8,10 @@ import { slugify } from "@/lib/utils/text";
 import { audit } from "@/features/audit/service";
 import { parseInput } from "@/lib/validation";
 import { CURRENCIES } from "@/lib/money";
+import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 
-export const TIMEZONES = [
-  "America/Mexico_City",
-  "America/Monterrey",
-  "America/Merida",
-  "America/Cancun",
-  "America/Chihuahua",
-  "America/Mazatlan",
-  "America/Hermosillo",
-  "America/Tijuana",
-  "America/Bogota",
-  "America/Lima",
-  "America/Santiago",
-  "America/Argentina/Buenos_Aires",
-  "America/New_York",
-  "America/Los_Angeles",
-  "Europe/Madrid",
-] as const;
+export const TIMEZONES = TIMEZONE_OPTIONS.map((t) => t.value) as [TimezoneValue, ...TimezoneValue[]];
+type TimezoneValue = (typeof TIMEZONE_OPTIONS)[number]["value"];
 
 export const organizationSchema = z.object({
   name: z.string().trim().min(2, "Escribe el nombre de tu empresa").max(160),

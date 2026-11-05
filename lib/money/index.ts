@@ -354,7 +354,7 @@ export function formatMoney(minor: number, currency: string): string {
   const abs = fromMinor(Math.abs(minor));
   // Intl recibe un número de 2 decimales exactos, sin pérdida relevante para formateo.
   const s = nf().format(Number(abs.toFixed(2)));
-  return `${neg ? "−" : ""}$${s} ${currency}`;
+  return `${neg ? "-" : ""}$${s} ${currency}`;
 }
 
 /** Formatea un decimal (cantidad, precio unitario) sin ceros sobrantes, mínimo 2 decimales para precios. */

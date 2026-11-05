@@ -9,7 +9,7 @@ import { audit } from "@/features/audit/service";
 import { getBrandTx } from "@/features/brands/service";
 import { likePattern } from "@/features/clients/service";
 
-export const UNITS = ["pieza", "servicio", "jornada", "hora", "día", "sesión", "paquete", "mes", "otra"] as const;
+export { UNITS } from "./constants";
 
 export const catalogSchema = z.object({
   title: z.string().trim().min(1, "El nombre del concepto es obligatorio").max(300),
