@@ -53,3 +53,12 @@ No se ha desplegado en ningún proveedor. Este documento describe cómo hacerlo.
 2. Hosting Node con HTTPS y dominio.
 3. (Opcional) Un proveedor SMTP para restablecer contraseñas e invitar por correo, cuando se implemente.
 4. (Opcional) Un bucket S3 privado, si no se usa el almacenamiento en base de datos.
+
+## Despliegue en Render (Blueprint incluido)
+
+1. Haz merge de la PR a `main`.
+2. En render.com: **New → Blueprint**, elige este repositorio y la rama `main`, y confirma con **Apply**.
+3. Render crea `cotizador-db` (PostgreSQL) y el servicio web. `scripts/render-start.sh` deriva la conexión del rol `cotizador_app`, aplica migraciones y arranca la app. La URL pública aparece en el servicio `cotizador`.
+
+En el plan gratuito, la app se suspende tras unos minutos sin uso y tarda en volver a responder, y la base de datos gratis caduca a los 30 días. Para uso real, cambia ambos a un plan de pago.
+Si `CREATE ROLE` fallara en tu plan, crea el rol `cotizador_app` (NOBYPASSRLS) desde una consola SQL con la contraseña de `APP_DB_PASSWORD`.

@@ -1,0 +1,31 @@
+# Blueprint de Render: app web Node + PostgreSQL gestionado.
+# En Render: New → Blueprint → elige este repositorio (rama main).
+services:
+  - type: web
+    name: cotizador
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: bash scripts/render-start.sh
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_ADMIN_URL
+        fromDatabase:
+          name: cotizador-db
+          property: connectionString
+      - key: APP_DB_PASSWORD
+        generateValue: true
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: STORAGE_DRIVER
+        value: database
+
+databases:
+  - name: cotizador-db
+    plan: free
+    region: oregon
+    databaseName: cotizador
+    postgresMajorVersion: "16"
