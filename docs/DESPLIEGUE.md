@@ -1,6 +1,6 @@
 # Despliegue
 
-No se ha desplegado en ningún proveedor. Este documento describe cómo hacerlo.
+Producción en Vercel (ver la sección «Despliegue en Vercel»). Este documento describe también otras opciones.
 
 ## Arquitectura de producción recomendada
 
@@ -62,3 +62,15 @@ No se ha desplegado en ningún proveedor. Este documento describe cómo hacerlo.
 
 En el plan gratuito, la app se suspende tras unos minutos sin uso y tarda en volver a responder, y la base de datos gratis caduca a los 30 días. Para uso real, cambia ambos a un plan de pago.
 Si `CREATE ROLE` fallara en tu plan, crea el rol `cotizador_app` (NOBYPASSRLS) desde una consola SQL con la contraseña de `APP_DB_PASSWORD`.
+
+## Despliegue en Vercel (producción actual)
+
+Producción: **https://cotizador.mediabandera.com** (proyecto `cotizador` en Vercel; rama de producción `main`).
+
+- **Base de datos:** Neon PostgreSQL conectada como integración de Vercel con el prefijo `ADMIN`. Así la conexión de dueño del esquema queda en `ADMIN_DATABASE_URL` / `ADMIN_DATABASE_URL_UNPOOLED` y no ocupa `DATABASE_URL`.
+- **`DATABASE_URL`** (solo Production, sensible): rol `cotizador_app` contra el host *pooler* de Neon.
+- **`AUTH_SECRET`**, **`APP_URL=https://cotizador.mediabandera.com`** y **`STORAGE_DRIVER=database`**: solo Production.
+- **Compilación:** `vercel.json` fija `framework: nextjs` y usa `scripts/vercel-build.sh`. En producción (`VERCEL_ENV=production`) ejecuta `db:setup-roles` y `db:migrate` con la conexión directa de administrador **antes** de `next build`; si la migración falla, el despliegue falla y el tráfico sigue en la versión anterior. En Preview se omiten.
+- **Fuentes del PDF:** `next.config.ts` incluye `assets/fonts` en el paquete de funciones (`outputFileTracingIncludes`).
+- **Dominio:** en el DNS de Hostinger, `cotizador` es un CNAME al destino que indica `vercel domains verify cotizador.mediabandera.com`. Los nameservers siguen en Hostinger.
+- Los despliegues de Preview no tienen `DATABASE_URL` y no deben apuntar a la base de producción.
