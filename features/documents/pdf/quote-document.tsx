@@ -32,7 +32,6 @@ export function QuotePdf({ doc, logo }: { doc: QuoteDocumentSnapshot; logo: Logo
           fontFamily: theme.font,
           fontSize: 9.5,
           color: theme.text,
-          lineHeight: 1.35,
         }}
       >
         {theme.template === "CREATIVE" ? (
@@ -77,23 +76,25 @@ export function QuotePdf({ doc, logo }: { doc: QuoteDocumentSnapshot; logo: Logo
 
 function Header({ doc, theme, logo }: { doc: QuoteDocumentSnapshot; theme: PdfTheme; logo: LogoData | null }) {
   const meta = (
-    <View style={{ alignItems: "flex-end" }}>
+    <View style={{ width: 220, flexShrink: 0 }}>
       <Text
         style={{
           fontFamily: theme.fontBold,
           fontWeight: theme.boldWeight,
           fontSize: theme.template === "MINIMAL" ? 18 : 20,
+          lineHeight: 1.25,
           letterSpacing: 2,
+          textAlign: "right",
           color: theme.template === "CORPORATE" ? theme.onPrimary : theme.template === "CREATIVE" ? theme.primaryText : theme.text,
         }}
       >
         COTIZACIÓN
       </Text>
-      <Text style={{ fontSize: 10, marginTop: 3, color: theme.template === "CORPORATE" ? theme.onPrimary : theme.text }}>
+      <Text style={{ fontSize: 10, marginTop: 3, textAlign: "right", color: theme.template === "CORPORATE" ? theme.onPrimary : theme.text }}>
         {doc.folio ?? "Sin folio"} · Versión {doc.versionNumber}
       </Text>
       {doc.status !== "DRAFT" && doc.status !== "SENT" ? (
-        <Text style={{ fontSize: 8.5, marginTop: 2, color: theme.template === "CORPORATE" ? theme.onPrimary : theme.muted }}>Estado: {QUOTE_STATUS_LABEL[doc.status]}</Text>
+        <Text style={{ fontSize: 8.5, marginTop: 2, textAlign: "right", color: theme.template === "CORPORATE" ? theme.onPrimary : theme.muted }}>Estado: {QUOTE_STATUS_LABEL[doc.status]}</Text>
       ) : null}
     </View>
   );
@@ -147,7 +148,7 @@ function Parties({ doc, theme }: { doc: QuoteDocumentSnapshot; theme: PdfTheme }
           <Label theme={theme}>Cliente</Label>
           {c ? (
             <>
-              <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 11 }}>{c.name}</Text>
+              <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 11, lineHeight: 1.25 }}>{c.name}</Text>
               {[c.businessName, c.taxId ? `RFC: ${c.taxId}` : null, c.contactName ? `Atención: ${c.contactName}` : null, c.address, [c.phone, c.email].filter(Boolean).join(" · ") || null]
                 .filter(Boolean)
                 .map((l, i) => (
@@ -170,7 +171,7 @@ function Parties({ doc, theme }: { doc: QuoteDocumentSnapshot; theme: PdfTheme }
         </View>
       </View>
       {doc.title ? (
-        <Text style={{ marginTop: 14, fontSize: 13, fontFamily: theme.fontBold, fontWeight: theme.boldWeight, color: theme.template === "CREATIVE" ? theme.primaryText : theme.text }}>{doc.title}</Text>
+        <Text style={{ marginTop: 14, fontSize: 13, lineHeight: 1.25, fontFamily: theme.fontBold, fontWeight: theme.boldWeight, color: theme.template === "CREATIVE" ? theme.primaryText : theme.text }}>{doc.title}</Text>
       ) : null}
       {doc.serviceDescription ? <Text style={{ marginTop: 4, fontSize: 9.5, lineHeight: 1.45 }}>{doc.serviceDescription}</Text> : null}
     </View>
@@ -288,8 +289,8 @@ function Totals({ doc, theme }: { doc: QuoteDocumentSnapshot; theme: PdfTheme })
             borderRadius: 6,
           }}
         >
-          <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 11, color: theme.template === "CORPORATE" ? theme.onPrimary : theme.text }}>TOTAL</Text>
-          <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 13, color: theme.template === "CORPORATE" ? theme.onPrimary : creative ? theme.primaryText : theme.text }}>
+          <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 11, lineHeight: 1.25, color: theme.template === "CORPORATE" ? theme.onPrimary : theme.text }}>TOTAL</Text>
+          <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 13, lineHeight: 1.25, color: theme.template === "CORPORATE" ? theme.onPrimary : creative ? theme.primaryText : theme.text }}>
             {formatMoney(t.totalMinor, doc.currency)}
           </Text>
         </View>
