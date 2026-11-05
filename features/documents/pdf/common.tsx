@@ -7,6 +7,11 @@ import type { PdfTheme } from "./theme";
 
 export const PAGE_PADDING = { top: 40, bottom: 64, horizontal: 44 };
 
+/** Ancho útil (puntos) según papel. react-pdf requiere ancho explícito en elementos absolutos anclados abajo. */
+export function contentWidth(page: "LETTER" | "A4") {
+  return (page === "A4" ? 595.28 : 612) - PAGE_PADDING.horizontal * 2;
+}
+
 export interface LogoData {
   data: Buffer;
   width: number;
@@ -25,7 +30,7 @@ export function Logo({ logo, brand, theme, maxW = 150, maxH = 54 }: { logo: Logo
   }
   return (
     <View style={{ width: 44, height: 44, borderRadius: 10, backgroundColor: theme.primary, alignItems: "center", justifyContent: "center" }}>
-      <Text style={{ color: theme.onPrimary, fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 16 }}>{initials(brand.name)}</Text>
+      <Text style={{ color: theme.onPrimary, fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 16, lineHeight: 1.25 }}>{initials(brand.name)}</Text>
     </View>
   );
 }
@@ -35,7 +40,7 @@ export function BrandBlock({ brand, theme, align = "left", onDark = false }: { b
   const lines = [brand.legalName, brand.taxId ? `RFC: ${brand.taxId}` : null, brand.address, [brand.phone, brand.email].filter(Boolean).join(" · ") || null, brand.website].filter(Boolean) as string[];
   return (
     <View style={{ alignItems: align === "right" ? "flex-end" : "flex-start", maxWidth: 260 }}>
-      <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 12, color: onDark ? theme.onPrimary : theme.text, textAlign: align }}>{brand.name}</Text>
+      <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 12, lineHeight: 1.25, color: onDark ? theme.onPrimary : theme.text, textAlign: align }}>{brand.name}</Text>
       {lines.map((l, i) => (
         <Text key={i} style={{ fontSize: 8.5, color, marginTop: 1.5, textAlign: align }}>
           {l}
@@ -57,17 +62,16 @@ export function Footer({ theme, brand, legend }: { theme: PdfTheme; brand: Brand
         position: "absolute",
         bottom: 24,
         left: PAGE_PADDING.horizontal,
-        right: PAGE_PADDING.horizontal,
+        width: contentWidth(theme.page),
         borderTopWidth: 0.5,
         borderTopColor: theme.border,
         paddingTop: 6,
         flexDirection: "row",
-        justifyContent: "space-between",
-        gap: 12,
       }}
     >
+      {/* Nota: react-pdf omite elementos fijos absolutos que usan `gap` o `left`+`right`; por eso ancho explícito y márgenes. */}
       <Text style={{ fontSize: 7.5, color: theme.muted, flex: 1 }}>{[brand.footerText, legend].filter(Boolean).join("  ·  ")}</Text>
-      <Text style={{ fontSize: 7.5, color: theme.muted }} render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
+      <Text style={{ fontSize: 7.5, color: theme.muted, marginLeft: 12 }} render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
     </View>
   );
 }

@@ -23,11 +23,11 @@ export function ReceiptPdf({ doc, logo }: { doc: ReceiptDocumentSnapshot; logo: 
   if (doc.quote) rows.push(["Cotización relacionada", `${doc.quote.folio ?? ""} · V${doc.quote.versionNumber}${doc.quote.title ? ` — ${doc.quote.title}` : ""}`]);
   return (
     <Document title={`Recibo ${doc.folio}`} author={doc.brand.name} creator={doc.brand.name} producer={doc.brand.name} language="es-MX">
-      <Page size={theme.page} style={{ paddingTop: PAGE_PADDING.top, paddingBottom: PAGE_PADDING.bottom, paddingHorizontal: PAGE_PADDING.horizontal, fontFamily: theme.font, fontSize: 9.5, color: theme.text, lineHeight: 1.35 }}>
+      <Page size={theme.page} style={{ paddingTop: PAGE_PADDING.top, paddingBottom: PAGE_PADDING.bottom, paddingHorizontal: PAGE_PADDING.horizontal, fontFamily: theme.font, fontSize: 9.5, color: theme.text }}>
         {theme.template === "CREATIVE" ? <View fixed style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: 10, backgroundColor: theme.primary }} /> : null}
         {isVoid ? (
           <View style={{ borderWidth: 2, borderColor: "#B42318", borderRadius: 6, padding: 8, marginBottom: 12 }}>
-            <Text style={{ color: "#B42318", fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 14, textAlign: "center" }}>RECIBO ANULADO</Text>
+            <Text style={{ color: "#B42318", fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 14, lineHeight: 1.25, textAlign: "center" }}>RECIBO ANULADO</Text>
             {doc.voidReason ? <Text style={{ color: "#B42318", textAlign: "center", fontSize: 9, marginTop: 2 }}>Motivo: {doc.voidReason}</Text> : null}
           </View>
         ) : null}
@@ -48,9 +48,9 @@ export function ReceiptPdf({ doc, logo }: { doc: ReceiptDocumentSnapshot; logo: 
             </View>
             <BrandBlock brand={doc.brand} theme={theme} onDark={corporate} />
           </View>
-          <View style={{ alignItems: "flex-end" }}>
-            <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 18, letterSpacing: 1.5, color: corporate ? theme.onPrimary : theme.template === "CREATIVE" ? theme.primaryText : theme.text }}>RECIBO DE PAGO</Text>
-            <Text style={{ fontSize: 11, marginTop: 3, color: corporate ? theme.onPrimary : theme.text }}>{doc.folio}</Text>
+          <View style={{ width: 230, flexShrink: 0 }}>
+            <Text style={{ textAlign: "right", fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 18, lineHeight: 1.25, letterSpacing: 1.5, color: corporate ? theme.onPrimary : theme.template === "CREATIVE" ? theme.primaryText : theme.text }}>RECIBO DE PAGO</Text>
+            <Text style={{ fontSize: 11, lineHeight: 1.25, marginTop: 3, textAlign: "right", color: corporate ? theme.onPrimary : theme.text }}>{doc.folio}</Text>
           </View>
         </View>
         {!corporate ? <View style={{ marginTop: 12, borderBottomWidth: theme.template === "CREATIVE" ? 2 : 0.6, borderBottomColor: theme.template === "CREATIVE" ? theme.primary : theme.border }} /> : null}
@@ -58,7 +58,7 @@ export function ReceiptPdf({ doc, logo }: { doc: ReceiptDocumentSnapshot; logo: 
         <View style={{ marginTop: 16, flexDirection: "row", gap: 18 }}>
           <View style={{ flex: 1 }}>
             <Label theme={theme}>Recibimos de</Label>
-            <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 12 }}>{doc.payer.name}</Text>
+            <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 12, lineHeight: 1.25 }}>{doc.payer.name}</Text>
             {[doc.payer.businessName, doc.payer.taxId ? `RFC: ${doc.payer.taxId}` : null, doc.payer.email].filter(Boolean).map((l, i) => (
               <Text key={i} style={{ fontSize: 8.5, color: theme.muted, marginTop: 1.5 }}>
                 {l}
@@ -67,7 +67,7 @@ export function ReceiptPdf({ doc, logo }: { doc: ReceiptDocumentSnapshot; logo: 
           </View>
           <View style={{ flex: 1, backgroundColor: theme.soft, borderRadius: 8, padding: 12 }} wrap={false}>
             <Label theme={theme}>Importe recibido</Label>
-            <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 18, color: isVoid ? theme.muted : theme.text, textDecoration: isVoid ? "line-through" : "none" }}>
+            <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 18, lineHeight: 1.25, color: isVoid ? theme.muted : theme.text, textDecoration: isVoid ? "line-through" : "none" }}>
               {formatMoney(doc.amountMinor, doc.currency)}
             </Text>
             <Text style={{ fontSize: 8, color: theme.muted, marginTop: 3 }}>({importeConLetra(doc.amountMinor, doc.currency)})</Text>
