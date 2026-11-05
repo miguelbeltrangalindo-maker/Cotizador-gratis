@@ -20,12 +20,22 @@ async function main() {
   const pool = new Pool({ connectionString: admin, max: 1 });
   const client = await pool.connect();
   try {
-    const exists = await client.query("select 1 from pg_roles where rolname = $1", [role]);
+    const exists = await client.query<{ rolsuper: boolean; rolbypassrls: boolean }>(
+      "select rolsuper, rolbypassrls from pg_roles where rolname = $1",
+      [role],
+    );
     const lit = password.replace(/'/g, "''");
     if (exists.rowCount === 0) {
       await client.query(`CREATE ROLE cotizador_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS PASSWORD '${lit}'`);
     } else {
-      await client.query(`ALTER ROLE cotizador_app LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD '${lit}'`);
+      // En servicios gestionados (p. ej. Neon) el administrador no puede modificar SUPERUSER/BYPASSRLS
+      // de un rol existente: solo se actualiza LOGIN y contraseña, y se VERIFICA que no tenga privilegios
+      // que anulen RLS (si los tuviera, se aborta en lugar de continuar).
+      const { rolsuper, rolbypassrls } = exists.rows[0];
+      if (rolsuper || rolbypassrls) {
+        throw new Error("El rol cotizador_app tiene SUPERUSER o BYPASSRLS; corrígelo manualmente antes de continuar");
+      }
+      await client.query(`ALTER ROLE cotizador_app LOGIN PASSWORD '${lit}'`);
     }
     const dbName = new URL(admin).pathname.slice(1);
     await client.query(`GRANT CONNECT ON DATABASE "${dbName.replace(/"/g, "")}" TO cotizador_app`);
