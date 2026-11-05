@@ -88,7 +88,7 @@ test("vertical slice: registro → empresa → marca → cliente → cotización
   // Enviar (asigna folio)
   await page.getByRole("button", { name: "Emitir y asignar folio" }).click();
   await page.waitForURL(/enviada=1/);
-  await expect(page.getByText("Cotización enviada")).toBeVisible();
+  await expect(page.getByText("Cotización emitida")).toBeVisible();
   const folio = (await page.getByRole("heading", { level: 1 }).textContent())!.trim();
   expect(folio).toMatch(/^[A-Z0-9-]+-\d{4}-\d{4}$/);
 
