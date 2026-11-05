@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { AppError } from "@/lib/errors";
-import { getQuoteDetail, getEditorData, saveDraft, createQuoteVersion } from "@/features/quotes/service";
-import { getReceipt, issueReceipt, listReceipts, voidReceipt, type ReceiptInput } from "@/features/receipts/service";
+import { changeQuoteStatus, createQuote, getQuoteDetail, getEditorData, saveDraft, createQuoteVersion } from "@/features/quotes/service";
+import { getReceipt, getReceiptPrefillFromQuote, issueReceipt, listReceipts, suggestReceiptTax, voidReceipt, type ReceiptInput } from "@/features/receipts/service";
 import { item, makeQuote, setupTenant } from "./helpers";
 
 const isCode = (code: string) => (e: unknown) => e instanceof AppError && e.code === code;
@@ -108,5 +108,32 @@ describe("recibos y saldos", () => {
     const d = await getQuoteDetail(T.ctx, q);
     expect(d.referenceVersionNumber).toBe(1);
     expect(d.balance.balanceMinor).toBe(60000);
+  });
+
+  it("el recibo vinculado sugiere el IVA de la cotización (y no lo desglosa si hay retenciones)", async () => {
+    const q16 = await makeQuote(T.ctx, T.brand.id, T.client.id, [item("A", "1", "1000", { taxMode: "EXCLUSIVE", taxRate: "16" })], { send: true });
+    const p16 = await getReceiptPrefillFromQuote(T.ctx, q16);
+    expect([p16.suggestedTaxTreatment, p16.suggestedTaxRate, p16.taxNote]).toEqual(["INCLUDED", "16", null]);
+
+    const q = await createQuote(T.ctx, { brandId: T.brand.id, clientId: T.client.id });
+    const e = await getEditorData(T.ctx, q.quoteId);
+    await saveDraft(T.ctx, q.quoteId, e.version.id, e.version.revision, {
+      ...e.draft,
+      currency: "MXN",
+      retentionIvaRate: "10.6667",
+      retentionIsrRate: "1.25",
+      items: [item("B", "1", "1000", { taxMode: "EXCLUSIVE", taxRate: "16" })],
+    });
+    await changeQuoteStatus(T.ctx, q.quoteId, "SENT");
+    const pr = await getReceiptPrefillFromQuote(T.ctx, q.quoteId);
+    expect(pr.suggestedTaxTreatment).toBe("NONE");
+    expect(pr.taxNote).toMatch(/retenciones/);
+  });
+
+  it("suggestReceiptTax: sin IVA, tasas mezcladas y tasa única", () => {
+    expect(suggestReceiptTax([], 0).treatment).toBe("NONE");
+    expect(suggestReceiptTax([{ taxMode: "NONE", taxRate: "0" }], 0)).toEqual({ treatment: "NONE", rate: "16", note: null });
+    expect(suggestReceiptTax([{ taxMode: "EXCLUSIVE", taxRate: "8.0000" }, { taxMode: "INCLUSIVE", taxRate: "8" }], 0)).toEqual({ treatment: "INCLUDED", rate: "8", note: null });
+    expect(suggestReceiptTax([{ taxMode: "EXCLUSIVE", taxRate: "16" }, { taxMode: "NONE", taxRate: "0" }], 0).note).toMatch(/distinto IVA/);
   });
 });

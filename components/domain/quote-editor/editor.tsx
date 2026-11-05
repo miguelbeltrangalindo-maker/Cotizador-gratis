@@ -295,7 +295,7 @@ export function QuoteEditor(props: {
   const statusText: Record<SaveState, string> = {
     dirty: "Cambios sin guardar…",
     saving: "Guardando…",
-    saved: "Guardado",
+    saved: "Guardado automáticamente",
     error: "Error al guardar",
     conflict: "Conflicto de edición",
     invalid: "Hay datos por corregir",
@@ -632,9 +632,9 @@ export function QuoteEditor(props: {
             </Button>
             {issueError ? <Alert tone="danger">{issueError}</Alert> : null}
             <Button onClick={markSent} disabled={issuing || saveState === "conflict"}>
-              {issuing ? "Enviando…" : "Marcar como enviada"}
+              {issuing ? "Emitiendo…" : "Emitir y asignar folio"}
             </Button>
-            <p className="text-xs text-muted">Al enviarla se asigna el folio y esta versión queda de solo lectura. Para cambios posteriores se crea una nueva versión.</p>
+            <p className="text-xs text-muted">Los cambios se guardan solos como borrador (sin folio). Al emitirla se asigna el folio, queda marcada como enviada y esta versión ya no se edita; para cambios posteriores se crea una nueva versión con el mismo folio.</p>
           </section>
         </aside>
       </div>

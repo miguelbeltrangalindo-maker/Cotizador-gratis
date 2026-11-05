@@ -11,7 +11,7 @@ async function expectNoHorizontalScroll(page: Page) {
 }
 
 async function waitSaved(page: Page) {
-  await expect(page.getByRole("status").filter({ hasText: /^Guardado$/ })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("status").filter({ hasText: /^Guardado automáticamente$/ })).toBeVisible({ timeout: 20_000 });
 }
 
 test("vertical slice: registro → empresa → marca → cliente → cotización → PDF → recibo → saldo", async ({ page, request }) => {
@@ -86,7 +86,7 @@ test("vertical slice: registro → empresa → marca → cliente → cotización
   await expect(page.getByText("$2,156.00 USD").first()).toBeVisible();
 
   // Enviar (asigna folio)
-  await page.getByRole("button", { name: "Marcar como enviada" }).click();
+  await page.getByRole("button", { name: "Emitir y asignar folio" }).click();
   await page.waitForURL(/enviada=1/);
   await expect(page.getByText("Cotización enviada")).toBeVisible();
   const folio = (await page.getByRole("heading", { level: 1 }).textContent())!.trim();

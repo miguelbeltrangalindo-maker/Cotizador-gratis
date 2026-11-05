@@ -1,6 +1,6 @@
 import { and, count, desc, eq, ilike, or } from "drizzle-orm";
 import { z } from "zod";
-import { organizations, quoteVersions, quotes, receipts } from "@/lib/db/schema";
+import { organizations, quoteItems, quoteVersions, quotes, receipts } from "@/lib/db/schema";
 import type { Tx } from "@/lib/db";
 import { AppError, conflict, notFound, validation } from "@/lib/errors";
 import {
@@ -366,6 +366,11 @@ export async function getReceiptPrefillFromQuote(ctx: TenantContext, quoteId: st
     if (!reference) throw new AppError("VALIDATION_ERROR", "La cotización debe estar enviada o aprobada para registrar pagos.");
     const client = quote.clientId ? await getClientTx(tx, ctx, quote.clientId) : null;
     const [v] = await tx.select().from(quoteVersions).where(eq(quoteVersions.id, reference.id));
+    const lines = await tx
+      .select({ taxMode: quoteItems.taxMode, taxRate: quoteItems.taxRate })
+      .from(quoteItems)
+      .where(and(eq(quoteItems.quoteVersionId, reference.id), eq(quoteItems.organizationId, ctx.organizationId)));
+    const tax = suggestReceiptTax(lines, v?.retentionMinor ?? 0);
     return {
       quoteId: quote.id,
       folio: quote.folio,
@@ -378,6 +383,39 @@ export async function getReceiptPrefillFromQuote(ctx: TenantContext, quoteId: st
       paidMinor: balance.paidMinor,
       totalMinor: reference.totalMinor,
       versionNumber: reference.versionNumber,
+      suggestedTaxTreatment: tax.treatment,
+      suggestedTaxRate: tax.rate,
+      taxNote: tax.note,
     };
   });
+}
+
+/**
+ * IVA informativo sugerido para un recibo vinculado. Solo se propone "Incluye IVA" cuando
+ * todos los conceptos llevan IVA a la misma tasa y no hay retenciones; en otro caso el
+ * desglose automático sería incorrecto y se deja en "Sin IVA" con una nota.
+ */
+export function suggestReceiptTax(
+  lines: Array<{ taxMode: string; taxRate: string }>,
+  retentionMinor: number,
+): { treatment: "NONE" | "INCLUDED"; rate: string; note: string | null } {
+  if (lines.length === 0 || lines.every((l) => l.taxMode === "NONE")) {
+    return { treatment: "NONE", rate: "16", note: null };
+  }
+  if (retentionMinor > 0) {
+    return {
+      treatment: "NONE",
+      rate: "16",
+      note: "La cotización tiene retenciones: el pago es el neto y el IVA no se desglosa automáticamente.",
+    };
+  }
+  const rates = new Set(lines.map((l) => (l.taxMode === "NONE" ? "NONE" : String(Number(l.taxRate)))));
+  if (rates.size === 1 && !rates.has("NONE")) {
+    return { treatment: "INCLUDED", rate: [...rates][0], note: null };
+  }
+  return {
+    treatment: "NONE",
+    rate: "16",
+    note: "La cotización combina conceptos con distinto IVA: el IVA no se desglosa automáticamente.",
+  };
 }

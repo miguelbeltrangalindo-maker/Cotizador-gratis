@@ -40,7 +40,16 @@ export default async function QuoteDetailPage({ params, searchParams }: { params
           </span>
         }
       />
-      {sp.enviada ? <Alert tone="success" title="Cotización enviada">Se asignó el folio {d.quote.folio}. Ya puedes descargar el PDF y registrar pagos.</Alert> : null}
+      {status === "DRAFT" && d.isCurrent && !d.quote.archivedAt ? (
+        <Alert tone="info" title="Borrador guardado">
+          Todavía no tiene folio. Para asignárselo,{" "}
+          <Link className="font-semibold underline" href={`/cotizaciones/${d.quote.id}/editar`}>
+            ábrela en el editor
+          </Link>{" "}
+          y presiona «Emitir y asignar folio».
+        </Alert>
+      ) : null}
+      {sp.enviada ? <Alert tone="success" title="Cotización emitida">Se asignó el folio {d.quote.folio}. Ya puedes descargar el PDF y registrar pagos.</Alert> : null}
       {d.quote.archivedAt ? <Alert tone="warning">Esta cotización está archivada.</Alert> : null}
       {!d.isCurrent ? (
         <Alert tone="info">
