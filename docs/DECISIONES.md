@@ -35,3 +35,4 @@
 - La cantidad debe ser mayor que 0. Se permite precio 0 (cortesías). Un descuento mayor que el importe de la línea es un error.
 - Al cambiar de moneda no se convierten importes: se muestra una advertencia para ajustarlos manualmente.
 - Los recibos vinculados exigen una cotización ENVIADA o APROBADA en la misma moneda.
+- **Retenciones (RESICO y otras)** a nivel documento: ISR = round2(subtotal × tasa); IVA retenido = round2(base gravada con IVA × tasa). Preajuste RESICO: IVA 10.6667 % e ISR 1.25 %. El `total_minor` guardado es el **total a pagar** (subtotal + IVA − retenciones), por lo que saldos y recibos usan el neto que el cliente realmente paga. Las tasas se guardan por versión (`retention_iva_rate`, `retention_isr_rate`) y la marca define las sugeridas. Los snapshots anteriores sin retenciones se muestran igual que antes.

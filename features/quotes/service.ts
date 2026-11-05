@@ -13,7 +13,7 @@ import {
 } from "@/lib/db/schema";
 import type { Tx } from "@/lib/db";
 import { AppError, conflict, notFound, validation } from "@/lib/errors";
-import { calculatePaidAndBalance, computeLine, MoneyError, normalizeLine, type BalanceResult } from "@/lib/money";
+import { calculatePaidAndBalance, computeLine, MoneyError, normalizeLine, normalizeRetentionRate, type BalanceResult } from "@/lib/money";
 import { assertCan, assertUuid, withTenant, type TenantContext } from "@/lib/security/tenant";
 import { addDays, todayInTimeZone, yearInTimeZone } from "@/lib/utils/dates";
 import { parseInput } from "@/lib/validation";
@@ -177,6 +177,7 @@ function buildLiveSnapshot(args: {
   const { sections, totals } = buildSections(
     content.groups.map((g) => ({ id: g.id, title: g.title, showSubtotal: g.showSubtotal })),
     content.items,
+    { ivaRate: version.retentionIvaRate, isrRate: version.retentionIsrRate },
   );
   const customFields = content.custom
     .map((c) => ({ def: c.definitionSnapshotJson as CustomFieldDefinitionSnapshot, value: c.valueJson }))
@@ -362,6 +363,8 @@ export async function createQuote(ctx: TenantContext, input: { brandId?: string 
       issueDate: today,
       validUntil: brand.defaultValidityDays > 0 ? addDays(today, brand.defaultValidityDays) : null,
       paymentTerms: brand.defaultPaymentTerms,
+      retentionIvaRate: brand.defaultRetentionIvaRate,
+      retentionIsrRate: brand.defaultRetentionIsrRate,
       createdBy: ctx.userId,
     });
     await tx.update(quotes).set({ currentVersionId: versionId }).where(eq(quotes.id, quoteId));
@@ -400,10 +403,30 @@ function computeItemsOrThrow(data: DraftData) {
   });
 }
 
+/** Valida las tasas de retención del borrador. */
+function normalizeRetentionsOrThrow(data: DraftData) {
+  try {
+    return {
+      ivaRate: normalizeRetentionRate(data.retentionIvaRate, "Retención de IVA"),
+      isrRate: normalizeRetentionRate(data.retentionIsrRate, "Retención de ISR"),
+    };
+  } catch (e) {
+    if (e instanceof MoneyError) throw validation(e.message, { retentions: e.message });
+    throw e;
+  }
+}
+
 export interface SaveDraftResult {
   revision: number;
   updatedAt: string;
-  totals: { grossMinor: number; discountMinor: number; subtotalMinor: number; taxMinor: number; totalMinor: number };
+  totals: {
+    grossMinor: number;
+    discountMinor: number;
+    subtotalMinor: number;
+    taxMinor: number;
+    retentionMinor: number;
+    totalMinor: number;
+  };
 }
 
 /**
@@ -422,6 +445,7 @@ export async function saveDraft(
   assertUuid(versionId, "La versión");
   const data = parseInput(draftSchema, input);
   const computed = computeItemsOrThrow(data);
+  const retentions = normalizeRetentionsOrThrow(data);
   return withTenant(ctx, async (tx) => {
     const quote = await getQuoteRowTx(tx, ctx, quoteId, true);
     const [version] = await tx
@@ -461,10 +485,17 @@ export async function saveDraft(
       if (value !== null) customRows.push({ def, value });
     }
 
-    const { totals } = buildSections(
-      data.groups.map((g) => ({ ...g })),
-      computed.map((c) => ({ ...c, description: c.description })),
-    );
+    let totals;
+    try {
+      ({ totals } = buildSections(
+        data.groups.map((g) => ({ ...g })),
+        computed.map((c) => ({ ...c, description: c.description })),
+        retentions,
+      ));
+    } catch (e) {
+      if (e instanceof MoneyError) throw validation(e.message);
+      throw e;
+    }
 
     const newRevision = revision + 1;
     const now = new Date();
@@ -492,6 +523,9 @@ export async function saveDraft(
         discountMinor: totals.discountMinor,
         subtotalMinor: totals.subtotalMinor,
         taxMinor: totals.taxMinor,
+        retentionIvaRate: retentions.ivaRate,
+        retentionIsrRate: retentions.isrRate,
+        retentionMinor: totals.retentionMinor ?? 0,
         totalMinor: totals.totalMinor,
         updatedAt: now,
       })
@@ -561,6 +595,7 @@ export async function saveDraft(
         discountMinor: totals.discountMinor,
         subtotalMinor: totals.subtotalMinor,
         taxMinor: totals.taxMinor,
+        retentionMinor: totals.retentionMinor ?? 0,
         totalMinor: totals.totalMinor,
       },
     };
@@ -845,6 +880,8 @@ export async function getEditorData(ctx: TenantContext, quoteId: string) {
       showOnlyGrandTotal: version.showOnlyGrandTotal,
       pdfTemplate: (version.pdfTemplate as DraftData["pdfTemplate"]) ?? null,
       paperSize: (version.paperSize as DraftData["paperSize"]) ?? null,
+      retentionIvaRate: trimZeros(version.retentionIvaRate),
+      retentionIsrRate: trimZeros(version.retentionIsrRate),
       groups: content.groups.map((g) => ({ id: g.id, title: g.title, showSubtotal: g.showSubtotal })),
       items: content.items.map((it) => ({
         id: it.id,

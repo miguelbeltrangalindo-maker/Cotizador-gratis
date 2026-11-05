@@ -15,6 +15,13 @@
       "when": 1793852987914,
       "tag": "0001_rls_and_tenant_fks",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793906737325,
+      "tag": "0002_retentions",
+      "breakpoints": true
     }
   ]
 }

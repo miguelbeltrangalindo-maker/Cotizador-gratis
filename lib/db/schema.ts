@@ -194,6 +194,8 @@ export const brands = pgTable(
     defaultCurrency: text("default_currency").notNull().default("MXN"),
     defaultTaxMode: text("default_tax_mode").notNull().default("EXCLUSIVE"),
     defaultTaxRate: numeric("default_tax_rate", { precision: 7, scale: 4 }).notNull().default("16"),
+    defaultRetentionIvaRate: numeric("default_retention_iva_rate", { precision: 7, scale: 4 }).notNull().default("0"),
+    defaultRetentionIsrRate: numeric("default_retention_isr_rate", { precision: 7, scale: 4 }).notNull().default("0"),
     defaultPaymentTerms: text("default_payment_terms"),
     defaultValidityDays: integer("default_validity_days").notNull().default(15),
     quotePrefix: text("quote_prefix").notNull().default("COT"),
@@ -349,6 +351,9 @@ export const quoteVersions = pgTable(
     discountMinor: minor("discount_minor").notNull().default(0),
     subtotalMinor: minor("subtotal_minor").notNull().default(0),
     taxMinor: minor("tax_minor").notNull().default(0),
+    retentionIvaRate: numeric("retention_iva_rate", { precision: 7, scale: 4 }).notNull().default("0"),
+    retentionIsrRate: numeric("retention_isr_rate", { precision: 7, scale: 4 }).notNull().default("0"),
+    retentionMinor: minor("retention_minor").notNull().default(0),
     totalMinor: minor("total_minor").notNull().default(0),
     isLocked: boolean("is_locked").notNull().default(false),
     lockReason: text("lock_reason"),
@@ -369,6 +374,10 @@ export const quoteVersions = pgTable(
     ),
     check("quote_versions_currency_check", sql`${t.currency} in ('MXN','USD')`),
     check("quote_versions_totals_check", sql`${t.totalMinor} >= 0 and ${t.taxMinor} >= 0`),
+    check(
+      "quote_versions_retention_check",
+      sql`${t.retentionMinor} >= 0 and ${t.retentionIvaRate} between 0 and 100 and ${t.retentionIsrRate} between 0 and 100`,
+    ),
   ],
 );
 

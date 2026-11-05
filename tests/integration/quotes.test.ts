@@ -44,6 +44,37 @@ describe("cotizaciones: guardado, cálculo, versiones, estados y folios", () => 
     ]);
   });
 
+  it("RESICO: guarda tasas y retenciones, el total a pagar es el neto y queda en el snapshot", async () => {
+    const q = await createQuote(T.ctx, { brandId: T.brand.id, clientId: T.client.id });
+    const e = await getEditorData(T.ctx, q.quoteId);
+    expect(e.draft.retentionIvaRate).toBe("0");
+    await saveDraft(T.ctx, q.quoteId, e.version.id, e.version.revision, {
+      ...e.draft,
+      currency: "MXN",
+      retentionIvaRate: "10.6667",
+      retentionIsrRate: "1.25",
+      items: [item("Servicio", "1", "10000", { taxMode: "EXCLUSIVE", taxRate: "16" })],
+    });
+    await changeQuoteStatus(T.ctx, q.quoteId, "SENT");
+    const d = await getQuoteDetail(T.ctx, q.quoteId);
+    expect(d.version.retentionMinor).toBe(119167);
+    expect(d.version.totalMinor).toBe(1040833);
+    expect(d.document.totals.retentions?.map((r) => [r.kind, r.amountMinor])).toEqual([
+      ["ISR", 12500],
+      ["IVA", 106667],
+    ]);
+    const e2 = await getEditorData(T.ctx, q.quoteId);
+    expect([e2.draft.retentionIvaRate, e2.draft.retentionIsrRate]).toEqual(["10.6667", "1.25"]);
+  });
+
+  it("las cotizaciones nuevas toman las retenciones sugeridas de la marca", async () => {
+    const R = await setupTenant("Resico", { currency: "MXN", prefix: "RS" });
+    await updateBrand(R.ctx, R.brand.id, { name: "Marca Resico", quotePrefix: "RS", defaultCurrency: "MXN", defaultRetentionIvaRate: 10.6667, defaultRetentionIsrRate: 1.25 });
+    const q = await createQuote(R.ctx, { brandId: R.brand.id, clientId: R.client.id });
+    const e = await getEditorData(R.ctx, q.quoteId);
+    expect([e.draft.retentionIvaRate, e.draft.retentionIsrRate]).toEqual(["10.6667", "1.25"]);
+  });
+
   it("el servidor recalcula: rechaza importes inválidos y descuentos excesivos", async () => {
     const q = await createQuote(T.ctx, { brandId: T.brand.id });
     const e = await getEditorData(T.ctx, q.quoteId);

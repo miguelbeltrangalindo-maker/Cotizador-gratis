@@ -6,7 +6,7 @@ import { AppError } from "@/lib/errors";
 import { getQuoteDetail } from "@/features/quotes/service";
 import { displayStatus, QUOTE_STATUS_LABEL, type QuoteStatus } from "@/features/quotes/status";
 import { PAYMENT_METHOD_LABEL, type PaymentMethod } from "@/features/receipts/service";
-import { formatDecimal, formatMoney, formatPercent, formatUnitPrice } from "@/lib/money";
+import { formatDecimal, formatMoney, formatPercent, formatUnitPrice, retentionLabel } from "@/lib/money";
 import { formatCalendarDate, formatInstant, todayInTimeZone } from "@/lib/utils/dates";
 import { Alert, Card, DefinitionList, PageHeader } from "@/components/ui/misc";
 import { ButtonLink } from "@/components/ui/button";
@@ -127,8 +127,16 @@ export default async function QuoteDetailPage({ params, searchParams }: { params
               {doc.totals.taxBreakdown.map((t) => (
                 <Row key={t.mode + t.rate} k={`IVA ${formatPercent(t.rate)}${t.mode === "INCLUSIVE" ? " (incluido)" : ""}`} v={formatMoney(t.taxMinor, doc.currency)} />
               ))}
+              {doc.totals.retentions?.length ? (
+                <>
+                  <Row k="Total antes de retenciones" v={formatMoney(doc.totals.totalBeforeRetentionsMinor ?? doc.totals.totalMinor, doc.currency)} />
+                  {doc.totals.retentions.map((r) => (
+                    <Row key={r.kind} k={retentionLabel(r)} v={`-${formatMoney(r.amountMinor, doc.currency)}`} />
+                  ))}
+                </>
+              ) : null}
               <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
-                <dt>Total</dt>
+                <dt>{doc.totals.retentions?.length ? "Total a pagar" : "Total"}</dt>
                 <dd>{formatMoney(doc.totals.totalMinor, doc.currency)}</dd>
               </div>
             </dl>

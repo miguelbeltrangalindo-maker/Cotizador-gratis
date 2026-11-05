@@ -41,6 +41,7 @@ export async function exportCsv(ctx: TenantContext, kind: ExportKind): Promise<s
           currency: quoteVersions.currency,
           subtotal: quoteVersions.subtotalMinor,
           tax: quoteVersions.taxMinor,
+          retention: quoteVersions.retentionMinor,
           total: quoteVersions.totalMinor,
           issueDate: quoteVersions.issueDate,
           validUntil: quoteVersions.validUntil,
@@ -53,8 +54,8 @@ export async function exportCsv(ctx: TenantContext, kind: ExportKind): Promise<s
         .where(eq(quoteVersions.organizationId, ctx.organizationId))
         .orderBy(desc(quoteVersions.createdAt));
       return toCsv(
-        ["folio", "version", "estado", "titulo", "cliente", "marca", "moneda", "subtotal", "iva", "total", "fecha_emision", "vigencia", "creada"],
-        rows.map((r) => [r.folio ?? "BORRADOR", r.version, r.status, r.title, r.client, r.brand, r.currency, minorToDecimalString(r.subtotal), minorToDecimalString(r.tax), minorToDecimalString(r.total), r.issueDate, r.validUntil, r.createdAt]),
+        ["folio", "version", "estado", "titulo", "cliente", "marca", "moneda", "subtotal", "iva", "retenciones", "total", "fecha_emision", "vigencia", "creada"],
+        rows.map((r) => [r.folio ?? "BORRADOR", r.version, r.status, r.title, r.client, r.brand, r.currency, minorToDecimalString(r.subtotal), minorToDecimalString(r.tax), minorToDecimalString(r.retention), minorToDecimalString(r.total), r.issueDate, r.validUntil, r.createdAt]),
       );
     }
     const rows = await tx

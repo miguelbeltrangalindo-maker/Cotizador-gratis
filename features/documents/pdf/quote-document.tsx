@@ -1,6 +1,6 @@
 import { Document, Page, Text, View } from "@react-pdf/renderer";
 import type { QuoteDocumentSnapshot, QuoteLineSnapshot } from "@/features/documents/snapshot";
-import { formatDecimal, formatMoney, formatPercent, formatUnitPrice } from "@/lib/money";
+import { formatDecimal, formatMoney, formatPercent, formatUnitPrice, retentionLabel } from "@/lib/money";
 import { formatCalendarDate } from "@/lib/utils/dates";
 import { QUOTE_STATUS_LABEL } from "@/features/quotes/status";
 import { BrandBlock, Footer, Label, Logo, PAGE_PADDING, Paragraph, Signature, type LogoData } from "./common";
@@ -265,6 +265,12 @@ function Totals({ doc, theme }: { doc: QuoteDocumentSnapshot; theme: PdfTheme })
     rows.push(["Subtotal", formatMoney(t.subtotalMinor, doc.currency)]);
     for (const b of t.taxBreakdown) rows.push([`IVA ${formatPercent(b.rate)}${b.mode === "INCLUSIVE" ? " (incluido)" : ""}`, formatMoney(b.taxMinor, doc.currency)]);
   }
+  // Las retenciones cambian el importe a pagar: se muestran siempre, incluso con "solo total".
+  const retentions = t.retentions ?? [];
+  if (retentions.length) {
+    rows.push(["Total antes de retenciones", formatMoney(t.totalBeforeRetentionsMinor ?? t.totalMinor, doc.currency)]);
+    for (const r of retentions) rows.push([retentionLabel(r), `-${formatMoney(r.amountMinor, doc.currency)}`]);
+  }
   const creative = theme.template === "CREATIVE";
   return (
     <View wrap={false} style={{ marginTop: 12, alignItems: "flex-end" }}>
@@ -289,7 +295,7 @@ function Totals({ doc, theme }: { doc: QuoteDocumentSnapshot; theme: PdfTheme })
             borderRadius: 6,
           }}
         >
-          <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 11, lineHeight: 1.25, color: theme.template === "CORPORATE" ? theme.onPrimary : theme.text }}>TOTAL</Text>
+          <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 11, lineHeight: 1.25, color: theme.template === "CORPORATE" ? theme.onPrimary : theme.text }}>{retentions.length ? "TOTAL A PAGAR" : "TOTAL"}</Text>
           <Text style={{ fontFamily: theme.fontBold, fontWeight: theme.boldWeight, fontSize: 13, lineHeight: 1.25, color: theme.template === "CORPORATE" ? theme.onPrimary : creative ? theme.primaryText : theme.text }}>
             {formatMoney(t.totalMinor, doc.currency)}
           </Text>

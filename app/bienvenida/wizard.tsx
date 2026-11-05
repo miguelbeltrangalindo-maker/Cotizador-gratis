@@ -5,6 +5,7 @@ import { useState } from "react";
 import { completeOnboardingAction } from "@/features/organizations/actions";
 import { TIMEZONE_OPTIONS } from "@/lib/timezones";
 import { suggestPrefix } from "@/lib/utils/folio";
+import { RETENTION_PRESETS } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import { Alert } from "@/components/ui/misc";
@@ -21,6 +22,8 @@ export function OnboardingWizard({ userName, isAdditional }: { userName: string;
     quotePrefix: "",
     defaultTaxMode: "EXCLUSIVE" as "NONE" | "EXCLUSIVE" | "INCLUSIVE",
     defaultTaxRate: 16,
+    defaultRetentionIvaRate: 0,
+    defaultRetentionIsrRate: 0,
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -123,16 +126,29 @@ export function OnboardingWizard({ userName, isAdditional }: { userName: string;
           <Field label="IVA sugerido" htmlFor="brand-tax" hint="Podrás cambiarlo en cada concepto. No es asesoría fiscal.">
             <Select
               id="brand-tax"
-              value={brand.defaultTaxMode === "NONE" ? "NONE" : `${brand.defaultTaxMode}:${brand.defaultTaxRate}`}
+              value={
+                brand.defaultTaxMode === "NONE"
+                  ? "NONE"
+                  : `${brand.defaultTaxMode}:${brand.defaultTaxRate}${brand.defaultRetentionIsrRate > 0 ? ":RESICO" : ""}`
+              }
               onChange={(e) => {
-                if (e.target.value === "NONE") setBrand({ ...brand, defaultTaxMode: "NONE", defaultTaxRate: 0 });
+                const noRetention = { defaultRetentionIvaRate: 0, defaultRetentionIsrRate: 0 };
+                if (e.target.value === "NONE") setBrand({ ...brand, ...noRetention, defaultTaxMode: "NONE", defaultTaxRate: 0 });
                 else {
-                  const [mode, rate] = e.target.value.split(":");
-                  setBrand({ ...brand, defaultTaxMode: mode as "EXCLUSIVE" | "INCLUSIVE", defaultTaxRate: Number(rate) });
+                  const [mode, rate, regime] = e.target.value.split(":");
+                  const retention =
+                    regime === "RESICO"
+                      ? {
+                          defaultRetentionIvaRate: Number(RETENTION_PRESETS.RESICO.ivaRate),
+                          defaultRetentionIsrRate: Number(RETENTION_PRESETS.RESICO.isrRate),
+                        }
+                      : noRetention;
+                  setBrand({ ...brand, ...retention, defaultTaxMode: mode as "EXCLUSIVE" | "INCLUSIVE", defaultTaxRate: Number(rate) });
                 }
               }}
             >
               <option value="EXCLUSIVE:16">Más IVA 16 %</option>
+              <option value="EXCLUSIVE:16:RESICO">Más IVA 16 % con retenciones RESICO (IVA 10.6667 %, ISR 1.25 %)</option>
               <option value="INCLUSIVE:16">Precios con IVA 16 % incluido</option>
               <option value="EXCLUSIVE:8">Más IVA 8 % (región fronteriza)</option>
               <option value="NONE">Sin IVA</option>

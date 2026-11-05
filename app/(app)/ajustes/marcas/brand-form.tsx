@@ -17,6 +17,7 @@ import {
 import { contrastRatio, ensureContrast, readableTextOn, tint } from "@/lib/utils/color";
 import { formatFolio, suggestPrefix } from "@/lib/utils/folio";
 import { initials } from "@/lib/utils/text";
+import { RETENTION_PRESETS, retentionPresetOf, type RetentionPreset } from "@/lib/money";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Alert, Card } from "@/components/ui/misc";
@@ -51,6 +52,8 @@ interface BrandRow {
   defaultCurrency: string;
   defaultTaxMode: string;
   defaultTaxRate: string;
+  defaultRetentionIvaRate: string;
+  defaultRetentionIsrRate: string;
   defaultPaymentTerms: string | null;
   defaultValidityDays: number;
   quotePrefix: string;
@@ -92,6 +95,8 @@ export function BrandForm({ brand, defaultCurrency }: { brand: BrandRow | null; 
     defaultCurrency: (brand?.defaultCurrency ?? defaultCurrency) as "MXN" | "USD",
     defaultTaxMode: (brand?.defaultTaxMode ?? "EXCLUSIVE") as "NONE" | "EXCLUSIVE" | "INCLUSIVE",
     defaultTaxRate: brand ? Number(brand.defaultTaxRate) : 16,
+    defaultRetentionIvaRate: brand ? Number(brand.defaultRetentionIvaRate) : 0,
+    defaultRetentionIsrRate: brand ? Number(brand.defaultRetentionIsrRate) : 0,
     defaultPaymentTerms: s(brand?.defaultPaymentTerms),
     defaultValidityDays: brand?.defaultValidityDays ?? 15,
     quotePrefix: brand?.quotePrefix ?? "",
@@ -348,6 +353,25 @@ export function BrandForm({ brand, defaultCurrency }: { brand: BrandRow | null; 
               <Input id="b-valid" inputMode="numeric" value={String(f.defaultValidityDays)} onChange={(e) => set("defaultValidityDays", Math.max(0, Math.min(365, Number(e.target.value) || 0)))} />
             </Field>
           </div>
+          <Field label="Retenciones sugeridas" htmlFor="b-retentions" hint="Se aplican a cotizaciones nuevas y pueden cambiarse en cada una. No es asesoría fiscal.">
+            <Select
+              id="b-retentions"
+              value={retentionPresetOf(f.defaultRetentionIvaRate, f.defaultRetentionIsrRate) ?? "CUSTOM"}
+              onChange={(e) => {
+                const p = RETENTION_PRESETS[e.target.value as RetentionPreset];
+                if (p) setF((prev) => ({ ...prev, defaultRetentionIvaRate: Number(p.ivaRate), defaultRetentionIsrRate: Number(p.isrRate) }));
+              }}
+            >
+              {(Object.keys(RETENTION_PRESETS) as RetentionPreset[]).map((k) => (
+                <option key={k} value={k}>
+                  {RETENTION_PRESETS[k].label}
+                </option>
+              ))}
+              {retentionPresetOf(f.defaultRetentionIvaRate, f.defaultRetentionIsrRate) === null ? (
+                <option value="CUSTOM">Personalizadas</option>
+              ) : null}
+            </Select>
+          </Field>
           <Field label="Condiciones de pago predeterminadas" htmlFor="b-terms">
             <Textarea id="b-terms" value={f.defaultPaymentTerms} onChange={(e) => set("defaultPaymentTerms", e.target.value)} rows={2} placeholder="Ej.: 50 % de anticipo y 50 % contra entrega." />
           </Field>

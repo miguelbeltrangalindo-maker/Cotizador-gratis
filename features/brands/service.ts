@@ -56,6 +56,8 @@ export const brandSchema = z.object({
   defaultCurrency: z.enum(CURRENCIES).default("MXN"),
   defaultTaxMode: z.enum(TAX_MODES).default("EXCLUSIVE"),
   defaultTaxRate: z.coerce.number().min(0, "Tasa inválida").max(100, "Tasa inválida").default(16),
+  defaultRetentionIvaRate: z.coerce.number().min(0, "Tasa inválida").max(100, "Tasa inválida").default(0),
+  defaultRetentionIsrRate: z.coerce.number().min(0, "Tasa inválida").max(100, "Tasa inválida").default(0),
   defaultPaymentTerms: optionalText(2000),
   defaultValidityDays: z.coerce.number().int().min(0).max(365).default(15),
   quotePrefix: prefix.default("COT"),
@@ -70,7 +72,12 @@ export type BrandInput = z.input<typeof brandSchema>;
 export type Brand = typeof brands.$inferSelect;
 
 function toRow(data: z.output<typeof brandSchema>) {
-  return { ...data, defaultTaxRate: String(data.defaultTaxRate) };
+  return {
+    ...data,
+    defaultTaxRate: String(data.defaultTaxRate),
+    defaultRetentionIvaRate: String(data.defaultRetentionIvaRate),
+    defaultRetentionIsrRate: String(data.defaultRetentionIsrRate),
+  };
 }
 
 export async function listBrands(ctx: TenantContext, opts: { activeOnly?: boolean } = {}) {
