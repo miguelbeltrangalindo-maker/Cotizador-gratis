@@ -1,0 +1,17 @@
+export const TIMEZONE_OPTIONS = [
+  { value: "America/Mexico_City", label: "Ciudad de México (centro)" },
+  { value: "America/Monterrey", label: "Monterrey" },
+  { value: "America/Merida", label: "Mérida" },
+  { value: "America/Cancun", label: "Cancún (sureste)" },
+  { value: "America/Chihuahua", label: "Chihuahua" },
+  { value: "America/Mazatlan", label: "Mazatlán (pacífico)" },
+  { value: "America/Hermosillo", label: "Hermosillo (Sonora)" },
+  { value: "America/Tijuana", label: "Tijuana (noroeste)" },
+  { value: "America/Bogota", label: "Bogotá" },
+  { value: "America/Lima", label: "Lima" },
+  { value: "America/Santiago", label: "Santiago de Chile" },
+  { value: "America/Argentina/Buenos_Aires", label: "Buenos Aires" },
+  { value: "America/New_York", label: "Nueva York" },
+  { value: "America/Los_Angeles", label: "Los Ángeles" },
+  { value: "Europe/Madrid", label: "Madrid" },
+] as const;
