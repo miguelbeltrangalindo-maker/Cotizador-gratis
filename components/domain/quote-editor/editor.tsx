@@ -20,7 +20,16 @@ import type { DraftData, DraftItem } from "@/features/quotes/schema";
 import type { CustomFieldDefinitionSnapshot } from "@/features/custom-fields/service";
 import { buildSections } from "@/features/documents/snapshot";
 import { PAPER_SIZES, PDF_TEMPLATES, PDF_TEMPLATE_LABEL } from "@/features/brands/constants";
-import { computeLine, formatMoney, formatPercent, MoneyError } from "@/lib/money";
+import {
+  computeLine,
+  formatMoney,
+  formatPercent,
+  MoneyError,
+  RETENTION_PRESETS,
+  retentionLabel,
+  retentionPresetOf,
+  type RetentionPreset,
+} from "@/lib/money";
 import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Alert } from "@/components/ui/misc";
@@ -118,8 +127,18 @@ export function QuoteEditor(props: {
 
   const computed = useMemo(() => {
     if (hasErrors) return null;
-    return buildSections(draft.groups, draft.items.map((i) => ({ ...i, unit: i.unit ?? null })));
-  }, [draft.groups, draft.items, hasErrors]);
+    try {
+      return buildSections(
+        draft.groups,
+        draft.items.map((i) => ({ ...i, unit: i.unit ?? null })),
+        { ivaRate: draft.retentionIvaRate, isrRate: draft.retentionIsrRate },
+      );
+    } catch (e) {
+      if (e instanceof MoneyError) return null;
+      throw e;
+    }
+  }, [draft.groups, draft.items, draft.retentionIvaRate, draft.retentionIsrRate, hasErrors]);
+  const retentionPreset = retentionPresetOf(draft.retentionIvaRate || 0, draft.retentionIsrRate || 0);
 
   const saveOnce = useCallback(async (): Promise<boolean> => {
     const snapshot = latest.current;
@@ -533,14 +552,43 @@ export function QuoteEditor(props: {
                 {computed.totals.taxBreakdown.map((t) => (
                   <Row key={`${t.mode}${t.rate}`} label={`IVA ${formatPercent(t.rate)}${t.mode === "INCLUSIVE" ? " (incluido)" : ""}`} value={formatMoney(t.taxMinor, draft.currency)} />
                 ))}
+                {computed.totals.retentions?.length ? (
+                  <>
+                    <Row label="Total antes de retenciones" value={formatMoney(computed.totals.totalBeforeRetentionsMinor ?? computed.totals.totalMinor, draft.currency)} />
+                    {computed.totals.retentions.map((r) => (
+                      <Row key={r.kind} label={retentionLabel(r)} value={`-${formatMoney(r.amountMinor, draft.currency)}`} />
+                    ))}
+                  </>
+                ) : null}
                 <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-border pt-3">
-                  <dt className="font-semibold">Total</dt>
+                  <dt className="font-semibold">{computed.totals.retentions?.length ? "Total a pagar" : "Total"}</dt>
                   <dd className="text-right text-xl font-semibold">{formatMoney(computed.totals.totalMinor, draft.currency)}</dd>
                 </div>
               </dl>
             ) : (
               <Alert tone="warning">Corrige los conceptos marcados para ver el total.</Alert>
             )}
+            <Field label="Retenciones" htmlFor="retentions" hint="Aplican cuando el cliente es persona moral. No es asesoría fiscal.">
+              <Select
+                id="retentions"
+                value={retentionPreset ?? "CUSTOM"}
+                onChange={(e) => {
+                  const p = RETENTION_PRESETS[e.target.value as RetentionPreset];
+                  if (p) set({ retentionIvaRate: p.ivaRate, retentionIsrRate: p.isrRate });
+                }}
+              >
+                {(Object.keys(RETENTION_PRESETS) as RetentionPreset[]).map((k) => (
+                  <option key={k} value={k}>
+                    {RETENTION_PRESETS[k].label}
+                  </option>
+                ))}
+                {retentionPreset === null ? (
+                  <option value="CUSTOM">
+                    {`Personalizadas: IVA ${formatPercent(draft.retentionIvaRate || "0")}, ISR ${formatPercent(draft.retentionIsrRate || "0")}`}
+                  </option>
+                ) : null}
+              </Select>
+            </Field>
             <div className="flex flex-col border-t border-border pt-2">
               <Checkbox id="showUnitPrices" label="Mostrar precios unitarios en el PDF" checked={draft.showUnitPrices} onChange={(e) => set({ showUnitPrices: e.target.checked })} />
               <Checkbox id="showOnlyGrandTotal" label="Mostrar solo el total general" checked={draft.showOnlyGrandTotal} onChange={(e) => set({ showOnlyGrandTotal: e.target.checked })} />

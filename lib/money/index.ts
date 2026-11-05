@@ -13,6 +13,8 @@
  *     EXCLUSIVE: neto = tras desc.; impuesto = round2(neto × tasa); total = neto + impuesto
  *     INCLUSIVE: total = tras desc.; neto = round2(total / (1 + tasa)); impuesto = total − neto
  *     NONE:      neto = total = tras desc.; impuesto = 0
+ * - Retenciones (documento): ISR = round2(subtotal × tasa); IVA = round2(base gravada × tasa);
+ *   total a pagar = subtotal + IVA − retenciones (ver applyRetentions).
  * - Importes en unidades menores (centavos) como enteros.
  */
 import Decimal from "decimal.js";
@@ -209,14 +211,101 @@ export interface TaxBreakdownRow {
   taxMinor: number;
 }
 
+export interface RetentionRow {
+  kind: "IVA" | "ISR";
+  /** Tasa en porcentaje sobre la base, p. ej. "10.6667" o "1.25". */
+  rate: string;
+  baseMinor: number;
+  amountMinor: number;
+}
+
 export interface DocumentTotals {
   grossMinor: number;
   discountMinor: number;
   subtotalMinor: number;
   taxMinor: number;
+  /** Total a pagar: subtotal + IVA − retenciones. */
   totalMinor: number;
   taxBreakdown: TaxBreakdownRow[];
   hasInclusiveTax: boolean;
+  /**
+   * Retenciones (ISR/IVA) que el cliente retiene y entera al SAT. Opcionales porque los
+   * snapshots emitidos antes de esta función no las incluyen (equivalen a ninguna).
+   */
+  retentions?: RetentionRow[];
+  retentionMinor?: number;
+  /** Subtotal + IVA, antes de retenciones. */
+  totalBeforeRetentionsMinor?: number;
+}
+
+/** Tasas de retención del documento, en porcentaje. "0" o vacío = sin retención. */
+export interface RetentionRates {
+  ivaRate?: string | number | null;
+  isrRate?: string | number | null;
+}
+
+/** Preajustes de retención (no es asesoría fiscal). */
+export const RETENTION_PRESETS = {
+  NONE: { label: "Sin retenciones", ivaRate: "0", isrRate: "0" },
+  RESICO: { label: "RESICO: retención de IVA 10.6667 % e ISR 1.25 %", ivaRate: "10.6667", isrRate: "1.25" },
+} as const;
+export type RetentionPreset = keyof typeof RETENTION_PRESETS;
+
+/** Identifica el preajuste que corresponde a unas tasas; null si son personalizadas. */
+export function retentionPresetOf(ivaRate: string | number, isrRate: string | number): RetentionPreset | null {
+  const iva = new Dec(ivaRate || 0);
+  const isr = new Dec(isrRate || 0);
+  for (const [key, p] of Object.entries(RETENTION_PRESETS) as Array<[RetentionPreset, (typeof RETENTION_PRESETS)[RetentionPreset]]>) {
+    if (iva.equals(p.ivaRate) && isr.equals(p.isrRate)) return key;
+  }
+  return null;
+}
+
+/** Etiqueta para documentos: "Retención de ISR 1.25 %". */
+export function retentionLabel(r: Pick<RetentionRow, "kind" | "rate">): string {
+  return `Retención de ${r.kind} ${formatPercent(r.rate)}`;
+}
+
+/** Valida y normaliza una tasa de retención (0–100 %, máx. 4 decimales). */
+export function normalizeRetentionRate(input: string | number | null | undefined, field: string): string {
+  const d = input === null || input === undefined || input === "" ? new Dec(0) : parseDecimal(input, field);
+  assertDecimals(d, field);
+  if (d.isNegative() || d.greaterThan(LIMITS.maxTaxRate)) {
+    throw new MoneyError("INVALID_RATE", `${field}: debe estar entre 0 y 100 %`);
+  }
+  return d.toString();
+}
+
+/**
+ * Aplica retenciones a nivel documento, redondeando HALF-UP cada una:
+ *   ISR retenido = round2(subtotal × tasa ISR)
+ *   IVA retenido = round2(base gravada con IVA × tasa IVA)
+ *   total a pagar = subtotal + IVA − retenciones
+ */
+export function applyRetentions(totals: DocumentTotals, rates: RetentionRates = {}): DocumentTotals {
+  const ivaRate = normalizeRetentionRate(rates.ivaRate, "Retención de IVA");
+  const isrRate = normalizeRetentionRate(rates.isrRate, "Retención de ISR");
+  const totalBeforeRetentionsMinor = totals.totalBeforeRetentionsMinor ?? totals.totalMinor;
+  const retentions: RetentionRow[] = [];
+  if (!new Dec(isrRate).isZero()) {
+    const baseMinor = totals.subtotalMinor;
+    retentions.push({ kind: "ISR", rate: isrRate, baseMinor, amountMinor: toMinor(fromMinor(baseMinor).times(isrRate).dividedBy(100)) });
+  }
+  if (!new Dec(ivaRate).isZero()) {
+    const baseMinor = totals.taxBreakdown.reduce((s, r) => s + r.baseMinor, 0);
+    retentions.push({ kind: "IVA", rate: ivaRate, baseMinor, amountMinor: toMinor(fromMinor(baseMinor).times(ivaRate).dividedBy(100)) });
+  }
+  const retentionMinor = retentions.reduce((s, r) => s + r.amountMinor, 0);
+  if (retentionMinor > totalBeforeRetentionsMinor) {
+    throw new MoneyError("DISCOUNT_EXCEEDS", "Las retenciones no pueden ser mayores que el total");
+  }
+  return {
+    ...totals,
+    retentions,
+    retentionMinor,
+    totalBeforeRetentionsMinor,
+    totalMinor: totalBeforeRetentionsMinor - retentionMinor,
+  };
 }
 
 export function sumLines(lines: Array<LineResult & { taxMode?: TaxMode; taxRate?: string | number }>): DocumentTotals {
@@ -228,6 +317,9 @@ export function sumLines(lines: Array<LineResult & { taxMode?: TaxMode; taxRate?
     totalMinor: 0,
     taxBreakdown: [],
     hasInclusiveTax: false,
+    retentions: [],
+    retentionMinor: 0,
+    totalBeforeRetentionsMinor: 0,
   };
   const breakdown = new Map<string, TaxBreakdownRow>();
   for (const l of lines) {
@@ -247,16 +339,20 @@ export function sumLines(lines: Array<LineResult & { taxMode?: TaxMode; taxRate?
     }
   }
   totals.taxBreakdown = [...breakdown.values()].sort((a, b) => new Dec(b.rate).comparedTo(new Dec(a.rate)));
+  totals.totalBeforeRetentionsMinor = totals.totalMinor;
   return totals;
 }
 
-/** Calcula todas las líneas y los totales del documento. */
-export function computeDocument(lines: LineInput[]): { lines: LineResult[]; totals: DocumentTotals } {
+/** Calcula todas las líneas y los totales del documento (con retenciones opcionales). */
+export function computeDocument(
+  lines: LineInput[],
+  retentions?: RetentionRates,
+): { lines: LineResult[]; totals: DocumentTotals } {
   const results = lines.map((l) => computeLine(l));
   const totals = sumLines(
     results.map((r, i) => ({ ...r, taxMode: lines[i].taxMode ?? "NONE", taxRate: lines[i].taxRate ?? 0 })),
   );
-  return { lines: results, totals };
+  return { lines: results, totals: applyRetentions(totals, retentions) };
 }
 
 // ---------------------------------------------------------------------------

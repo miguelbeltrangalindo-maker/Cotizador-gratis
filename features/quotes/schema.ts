@@ -47,6 +47,9 @@ export const draftSchema = z.object({
   showOnlyGrandTotal: z.boolean().default(false),
   pdfTemplate: z.enum(PDF_TEMPLATES).nullable().default(null),
   paperSize: z.enum(PAPER_SIZES).nullable().default(null),
+  /** Retenciones del documento en %, p. ej. RESICO: IVA "10.6667" e ISR "1.25". */
+  retentionIvaRate: num.default("0"),
+  retentionIsrRate: num.default("0"),
   groups: z.array(draftGroupSchema).max(MAX_GROUPS, `Máximo ${MAX_GROUPS} secciones`).default([]),
   items: z.array(draftItemSchema).max(MAX_ITEMS, `Máximo ${MAX_ITEMS} conceptos por versión`).default([]),
   customValues: z

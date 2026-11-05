@@ -20,7 +20,16 @@ import {
 
 export interface OnboardingInput {
   organization: { name: string; timezone: string; defaultCurrency: "MXN" | "USD" };
-  brand: { name: string; colorPrimary: string; defaultCurrency: "MXN" | "USD"; quotePrefix: string; defaultTaxRate: number; defaultTaxMode: "NONE" | "EXCLUSIVE" | "INCLUSIVE" };
+  brand: {
+    name: string;
+    colorPrimary: string;
+    defaultCurrency: "MXN" | "USD";
+    quotePrefix: string;
+    defaultTaxRate: number;
+    defaultTaxMode: "NONE" | "EXCLUSIVE" | "INCLUSIVE";
+    defaultRetentionIvaRate?: number;
+    defaultRetentionIsrRate?: number;
+  };
 }
 
 /** Onboarding: crea organización (OWNER) y primera marca; activa la organización en la sesión. */
@@ -42,6 +51,8 @@ export async function completeOnboardingAction(input: OnboardingInput): Promise<
       quotePrefix: input.brand.quotePrefix || suggestPrefix(input.brand.name || input.organization.name),
       defaultTaxRate: input.brand.defaultTaxRate,
       defaultTaxMode: input.brand.defaultTaxMode,
+      defaultRetentionIvaRate: input.brand.defaultRetentionIvaRate ?? 0,
+      defaultRetentionIsrRate: input.brand.defaultRetentionIsrRate ?? 0,
     });
     return { brandId: brand.id };
   });

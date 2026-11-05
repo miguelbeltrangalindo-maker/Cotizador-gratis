@@ -30,4 +30,4 @@
 - Las páginas de documentos ajenos devuelven la vista “No encontrado” con HTTP 200 por el streaming (las APIs devuelven 404).
 - La prueba E2E cubre el flujo principal en vista móvil. No hay pruebas de regresión visual automatizadas (las capturas se revisaron manualmente).
 - En iOS Safari, la vista previa integrada en `iframe` puede mostrar solo la primera página; existe el botón “Abrir en pestaña”.
-- Sin despliegue real: no se tiene acceso a hosting ni a una base gestionada.
+- Desplegado en Vercel + Neon (https://cotizador.mediabandera.com). Planes gratuitos: ver límites en docs/DESPLIEGUE.md.

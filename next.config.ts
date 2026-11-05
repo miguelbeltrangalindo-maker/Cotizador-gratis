@@ -35,6 +35,11 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   devIndicators: false,
   serverExternalPackages: ["@node-rs/argon2", "sharp", "@react-pdf/renderer", "pg"],
+  // Las fuentes del PDF se leen del disco en tiempo de ejecución (features/documents/pdf/theme.ts);
+  // en plataformas serverless (Vercel) deben incluirse explícitamente en el paquete de funciones.
+  outputFileTracingIncludes: {
+    "/**": ["./assets/fonts/**/*"],
+  },
   experimental: {
     serverActions: { bodySizeLimit: "8mb" },
   },

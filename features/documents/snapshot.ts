@@ -4,7 +4,7 @@
  * de documentos emitidos se generan SIEMPRE desde el snapshot, por lo que cambios
  * posteriores de marca, logo, tasa o colores no alteran documentos históricos.
  */
-import { computeLine, sumLines, type DocumentTotals, type DiscountType, type TaxMode } from "@/lib/money";
+import { applyRetentions, computeLine, sumLines, type DocumentTotals, type DiscountType, type RetentionRates, type TaxMode } from "@/lib/money";
 import type { FontFamily, PaperSize, PdfTemplate } from "@/features/brands/constants";
 import type { CustomFieldType } from "@/features/custom-fields/service";
 import type { QuoteStatus } from "@/features/quotes/status";
@@ -223,10 +223,12 @@ export interface LineSource {
 /**
  * Calcula líneas y secciones con el motor de dinero (fuente de verdad única).
  * Las líneas sin sección se agrupan al inicio en una sección sin título.
+ * Las retenciones (si las hay) se aplican al final sobre los totales del documento.
  */
 export function buildSections(
   groups: Array<{ id: string; title: string; showSubtotal: boolean }>,
   items: LineSource[],
+  retentions?: RetentionRates,
 ): { sections: QuoteSectionSnapshot[]; totals: DocumentTotals } {
   const lines = items.map((it) => {
     const r = computeLine({
@@ -252,7 +254,7 @@ export function buildSections(
     };
     return { groupId: it.groupId, line };
   });
-  const totals = sumLines(lines.map((l) => ({ ...l.line })));
+  const totals = applyRetentions(sumLines(lines.map((l) => ({ ...l.line }))), retentions);
   const groupIds = new Set(groups.map((g) => g.id));
   const sections: QuoteSectionSnapshot[] = [];
   const ungrouped = lines.filter((l) => !l.groupId || !groupIds.has(l.groupId)).map((l) => l.line);

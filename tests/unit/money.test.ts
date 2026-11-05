@@ -8,6 +8,8 @@ import {
   MoneyError,
   parseAmountToMinor,
   parseDecimal,
+  retentionPresetOf,
+  RETENTION_PRESETS,
 } from "@/lib/money";
 
 describe("motor de dinero — casos obligatorios", () => {
@@ -197,5 +199,71 @@ describe("formato", () => {
   it("siempre muestra el código ISO", () => {
     expect(formatMoney(185600 * 1, "USD")).toBe("$1,856.00 USD");
     expect(formatMoney(100000000, "MXN")).toBe("$1,000,000.00 MXN");
+  });
+});
+
+describe("retenciones (RESICO)", () => {
+  const RESICO = { ivaRate: RETENTION_PRESETS.RESICO.ivaRate, isrRate: RETENTION_PRESETS.RESICO.isrRate };
+
+  it("$10,000 + IVA 16 % con RESICO: ISR 125.00, IVA retenido 1,066.67, total a pagar 10,408.33", () => {
+    const { totals } = computeDocument([{ quantity: 1, unitPrice: "10000", taxMode: "EXCLUSIVE", taxRate: 16 }], RESICO);
+    expect(totals.subtotalMinor).toBe(1_000_000);
+    expect(totals.taxMinor).toBe(160_000);
+    expect(totals.totalBeforeRetentionsMinor).toBe(1_160_000);
+    expect(totals.retentions).toEqual([
+      { kind: "ISR", rate: "1.25", baseMinor: 1_000_000, amountMinor: 12_500 },
+      { kind: "IVA", rate: "10.6667", baseMinor: 1_000_000, amountMinor: 106_667 },
+    ]);
+    expect(totals.retentionMinor).toBe(119_167);
+    expect(totals.totalMinor).toBe(1_040_833);
+  });
+
+  it("sin retenciones el total no cambia", () => {
+    const { totals } = computeDocument([{ quantity: 1, unitPrice: "10000", taxMode: "EXCLUSIVE", taxRate: 16 }]);
+    expect(totals.retentions).toEqual([]);
+    expect(totals.retentionMinor).toBe(0);
+    expect(totals.totalMinor).toBe(1_160_000);
+  });
+
+  it("la retención de IVA solo usa la base gravada; la de ISR, todo el subtotal", () => {
+    const { totals } = computeDocument(
+      [
+        { quantity: 1, unitPrice: "10000", taxMode: "EXCLUSIVE", taxRate: 16 },
+        { quantity: 1, unitPrice: "1000", taxMode: "NONE" },
+      ],
+      RESICO,
+    );
+    const isr = totals.retentions!.find((r) => r.kind === "ISR")!;
+    const iva = totals.retentions!.find((r) => r.kind === "IVA")!;
+    expect(isr).toMatchObject({ baseMinor: 1_100_000, amountMinor: 13_750 });
+    expect(iva).toMatchObject({ baseMinor: 1_000_000, amountMinor: 106_667 });
+    expect(totals.totalMinor).toBe(1_260_000 - 13_750 - 106_667);
+  });
+
+  it("con IVA incluido, retiene sobre el neto", () => {
+    const { totals } = computeDocument([{ quantity: 1, unitPrice: "11600", taxMode: "INCLUSIVE", taxRate: 16 }], RESICO);
+    expect(totals.subtotalMinor).toBe(1_000_000);
+    expect(totals.retentionMinor).toBe(119_167);
+    expect(totals.totalMinor).toBe(1_040_833);
+  });
+
+  it("redondea cada retención HALF-UP a centavos", () => {
+    const { totals } = computeDocument([{ quantity: 1, unitPrice: "0.40", taxMode: "NONE" }], { isrRate: "1.25" });
+    expect(totals.retentions).toEqual([{ kind: "ISR", rate: "1.25", baseMinor: 40, amountMinor: 1 }]);
+    expect(totals.totalMinor).toBe(39);
+  });
+
+  it("rechaza tasas fuera de rango o con más de 4 decimales", () => {
+    const line = [{ quantity: 1, unitPrice: "100", taxMode: "EXCLUSIVE" as const, taxRate: 16 }];
+    expect(() => computeDocument(line, { isrRate: "101" })).toThrow(MoneyError);
+    expect(() => computeDocument(line, { ivaRate: "-1" })).toThrow(MoneyError);
+    expect(() => computeDocument(line, { ivaRate: "10.66667" })).toThrow(MoneyError);
+  });
+
+  it("identifica el preajuste a partir de las tasas guardadas", () => {
+    expect(retentionPresetOf("10.6667", "1.25")).toBe("RESICO");
+    expect(retentionPresetOf("10.6667000", "1.2500")).toBe("RESICO");
+    expect(retentionPresetOf("0", "0")).toBe("NONE");
+    expect(retentionPresetOf("10.6667", "10")).toBeNull();
   });
 });
