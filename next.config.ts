@@ -33,6 +33,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  devIndicators: false,
   serverExternalPackages: ["@node-rs/argon2", "sharp", "@react-pdf/renderer", "pg"],
   experimental: {
     serverActions: { bodySizeLimit: "8mb" },

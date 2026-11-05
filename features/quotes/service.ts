@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, count, desc, eq, gte, ilike, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import {
   brands,
   clients,
@@ -66,24 +66,21 @@ async function getVersionsTx(tx: Tx, ctx: TenantContext, quoteId: string) {
 }
 
 async function getVersionContentTx(tx: Tx, ctx: TenantContext, versionId: string) {
-  const [groups, items, custom] = await Promise.all([
-    tx
-      .select()
-      .from(quoteGroups)
-      .where(and(eq(quoteGroups.quoteVersionId, versionId), eq(quoteGroups.organizationId, ctx.organizationId)))
-      .orderBy(asc(quoteGroups.position)),
-    tx
-      .select()
-      .from(quoteItems)
-      .where(and(eq(quoteItems.quoteVersionId, versionId), eq(quoteItems.organizationId, ctx.organizationId)))
-      .orderBy(asc(quoteItems.position)),
-    tx
-      .select()
-      .from(quoteCustomValues)
-      .where(
-        and(eq(quoteCustomValues.quoteVersionId, versionId), eq(quoteCustomValues.organizationId, ctx.organizationId)),
-      ),
-  ]);
+  // Secuencial: una transacción usa una sola conexión.
+  const groups = await tx
+    .select()
+    .from(quoteGroups)
+    .where(and(eq(quoteGroups.quoteVersionId, versionId), eq(quoteGroups.organizationId, ctx.organizationId)))
+    .orderBy(asc(quoteGroups.position));
+  const items = await tx
+    .select()
+    .from(quoteItems)
+    .where(and(eq(quoteItems.quoteVersionId, versionId), eq(quoteItems.organizationId, ctx.organizationId)))
+    .orderBy(asc(quoteItems.position));
+  const custom = await tx
+    .select()
+    .from(quoteCustomValues)
+    .where(and(eq(quoteCustomValues.quoteVersionId, versionId), eq(quoteCustomValues.organizationId, ctx.organizationId)));
   return { groups, items, custom };
 }
 
@@ -880,8 +877,8 @@ export async function getEditorData(ctx: TenantContext, quoteId: string) {
 /** "3.0000" -> "3"; con minDecimals=2: "300.0000" -> "300.00". */
 export function trimZeros(v: string, minDecimals = 0): string {
   if (!v.includes(".")) return minDecimals ? `${v}.${"0".repeat(minDecimals)}` : v;
-  let [i, d] = v.split(".");
-  d = d.replace(/0+$/, "");
+  const [i, raw] = v.split(".");
+  let d = raw.replace(/0+$/, "");
   if (d.length < minDecimals) d = d.padEnd(minDecimals, "0");
   return d ? `${i}.${d}` : i;
 }
@@ -928,13 +925,4 @@ export async function getDashboard(ctx: TenantContext) {
       })),
     };
   });
-}
-
-export async function quoteIdsExist(ctx: TenantContext, ids: string[]) {
-  return withTenant(ctx, async (tx) =>
-    tx
-      .select({ id: quotes.id })
-      .from(quotes)
-      .where(and(eq(quotes.organizationId, ctx.organizationId), inArray(quotes.id, ids))),
-  );
 }

@@ -8,16 +8,8 @@ import { parseInput } from "@/lib/validation";
 import { slugify } from "@/lib/utils/text";
 import { isIsoDate } from "@/lib/utils/dates";
 
-export const CUSTOM_FIELD_TYPES = ["short_text", "long_text", "number", "date", "select", "checkbox"] as const;
-export type CustomFieldType = (typeof CUSTOM_FIELD_TYPES)[number];
-export const CUSTOM_FIELD_TYPE_LABEL: Record<CustomFieldType, string> = {
-  short_text: "Texto corto",
-  long_text: "Texto largo",
-  number: "Número",
-  date: "Fecha",
-  select: "Lista de opciones",
-  checkbox: "Casilla (sí/no)",
-};
+import { CUSTOM_FIELD_TYPES, type CustomFieldType } from "./constants";
+export * from "./constants";
 
 export const customFieldSchema = z.object({
   label: z.string().trim().min(1, "La etiqueta es obligatoria").max(80),
