@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cotizador
 
-## Getting Started
+Plataforma SaaS multiempresa y multimarca para crear **cotizaciones profesionales** y **recibos de pago** con control de saldos. Es responsive, se puede instalar como PWA y funciona sin servicios de inteligencia artificial.
 
-First, run the development server:
+> “Cotizador” es un nombre neutro de desarrollo. Se cambia con `NEXT_PUBLIC_APP_NAME` (ver `lib/app-config.ts`).
+
+## Qué incluye
+
+- Cuentas con correo y contraseña (Argon2id), sesiones seguras y rate limiting.
+- Organizaciones aisladas con roles (Propietario / Administrador / Colaborador). Aislamiento en servidor **y** con Row Level Security de PostgreSQL.
+- Varias marcas por organización, cada una con su logo, colores, tipografía, folios, impuestos, pie de página y datos bancarios opcionales.
+- Clientes, catálogo de servicios y productos, y campos personalizados.
+- Editor móvil de cotizaciones:
+  - autoguardado con control de concurrencia;
+  - conceptos ilimitados que se reordenan arrastrando o con botones;
+  - secciones con subtotal, descuentos, IVA añadido, incluido o sin IVA.
+- Versiones (V1, V2…) que conservan el histórico, estados comerciales y folios transaccionales únicos.
+- Recibos independientes o ligados a una cotización:
+  - anticipos y pagos parciales;
+  - bloqueo de sobrepagos y de mezcla de monedas;
+  - idempotencia contra doble emisión;
+  - anulación con motivo.
+- PDFs con 3 estilos (Minimal, Corporativo, Creativo):
+  - tamaño carta o A4, multipágina, fuentes incrustadas;
+  - generados desde snapshots inmutables;
+  - importe con letra en los recibos.
+- Cuadro de mando con montos pendientes por moneda, exportación CSV, manifest PWA y un service worker que no guarda en caché datos privados.
+
+## Arranque local
+
+Requisitos: Node 22 LTS (o ≥ 20.9), npm y PostgreSQL 16 (con Docker, o instalado localmente).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Opción rápida: crea .env con secretos aleatorios, levanta Postgres, migra y siembra datos demo
+npm run bootstrap
+npm run dev            # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Paso a paso:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. `cp .env.example .env`. Genera `AUTH_SECRET` con `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` y cambia la contraseña de `cotizador_app` en `DATABASE_URL`.
+2. `docker compose up -d postgres`. El contenedor crea `cotizador` y `cotizador_test`.
+3. `npm ci`
+4. `npm run db:setup-roles`: crea el rol de aplicación **sin privilegios** usando la contraseña de `DATABASE_URL`.
+5. `npm run db:migrate`
+6. `npm run db:seed:demo` (opcional; requiere `ENABLE_DEMO_SEED=true` y nunca corre en producción).
+7. `npm run dev` y abre http://localhost:3000
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Credenciales demo, **solo locales**:
 
-## Learn More
+| Cuenta | Organización |
+|---|---|
+| `demo-a@cotizador.local` / `DemoLocal-2026` | Estudio Creativo Demo (marca “Media Demo”) |
+| `demo-b@cotizador.local` / `DemoLocal-2026` | Consultoría Horizonte Demo (independiente) |
 
-To learn more about Next.js, take a look at the following resources:
+## Scripts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Script | Uso |
+|---|---|
+| `dev` / `build` / `start` | Desarrollo, build y producción |
+| `lint` / `typecheck` | ESLint (0 warnings) y TypeScript estricto |
+| `test` | Pruebas unitarias (dinero, folios, estados, fechas, letras) |
+| `test:integration` | Integración contra PostgreSQL real (`cotizador_test`, se reinicia cada vez) |
+| `test:e2e` | Playwright contra el build de producción (requiere `npm run build` y datos demo) |
+| `db:generate` / `db:migrate` / `db:setup-roles` | Migraciones Drizzle y rol de ejecución |
+| `db:seed:demo` | Datos de demostración (solo desarrollo) |
+| `db:reset:dev` | Reinicia la base **local** (bloqueado en producción y en hosts remotos) |
+| `user:reset-password -- correo [clave]` | Restablecimiento local mientras no haya SMTP |
+| `pwa:icons` | Regenera los iconos PWA |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Si Chromium ya está instalado (por ejemplo, en contenedores), usa `PW_EXECUTABLE_PATH=/ruta/a/chrome npm run test:e2e`.
 
-## Deploy on Vercel
+## Documentación
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md): capas, seguridad multi-tenant y flujo de datos.
+- [docs/DECISIONES.md](docs/DECISIONES.md): decisiones técnicas y supuestos de producto.
+- [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md): producción, variables, backups y rollback.
+- [docs/LIMITACIONES.md](docs/LIMITACIONES.md): qué está listo, qué está preparado y qué falta.
+- [docs/PLAN_IMPLEMENTACION.md](docs/PLAN_IMPLEMENTACION.md): hitos y su estado.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> Los recibos son comprobantes comerciales de recepción de pago y **no sustituyen un CFDI**.
