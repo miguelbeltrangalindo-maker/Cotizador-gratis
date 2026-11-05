@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, "claude/**"]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cotizador
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_ADMIN_URL: postgres://postgres:postgres@localhost:5432/cotizador
+      DATABASE_URL: postgres://cotizador_app:ci_app_password@localhost:5432/cotizador
+      AUTH_SECRET: ci-secret-no-usar-en-produccion-0123456789abcdef
+      APP_URL: http://localhost:3000
+      ENABLE_DEMO_SEED: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Herramientas de PDF para pruebas
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Base de pruebas
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE cotizador_test"
+      - run: npm run test:integration
+      - name: Preparar base de la app
+        run: npm run db:setup-roles && npm run db:migrate && npm run db:seed:demo
+      - run: npm run build
+      - name: Navegador para E2E
+        run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright
+          path: test-results
