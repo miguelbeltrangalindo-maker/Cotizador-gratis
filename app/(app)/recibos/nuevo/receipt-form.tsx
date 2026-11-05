@@ -23,6 +23,9 @@ interface Prefill {
   paidMinor: number;
   totalMinor: number;
   versionNumber: number;
+  suggestedTaxTreatment: ReceiptTaxTreatment;
+  suggestedTaxRate: string;
+  taxNote: string | null;
 }
 
 interface QuoteOption {
@@ -57,8 +60,8 @@ export function ReceiptForm({
     receivedAtLocal: defaultReceivedAt,
     currency: (prefill?.currency ?? brands[0].currency) as "MXN" | "USD",
     amount: prefill ? (prefill.balanceMinor / 100).toFixed(2) : "",
-    taxTreatment: "NONE" as ReceiptTaxTreatment,
-    taxRate: "16",
+    taxTreatment: (prefill?.suggestedTaxTreatment ?? "NONE") as ReceiptTaxTreatment,
+    taxRate: prefill?.suggestedTaxRate ?? "16",
     notesPublic: "",
     notesInternal: "",
     signatureName: brands.find((b) => b.id === (prefill?.brandId ?? brands[0].id))?.signatureName ?? "",
@@ -232,7 +235,16 @@ export function ReceiptForm({
           <Field label={form.taxTreatment === "ADDED" ? `Monto base (${form.currency})` : `Monto recibido (${form.currency})`} htmlFor="r-amount" required error={fieldErrors.amount}>
             <Input id="r-amount" inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" />
           </Field>
-          <Field label="IVA (informativo)" htmlFor="r-tax">
+          <Field
+            label="IVA (informativo)"
+            htmlFor="r-tax"
+            hint={
+              linked
+                ? (linked.taxNote ??
+                  (linked.suggestedTaxTreatment === "INCLUDED" ? `Según la cotización: el pago incluye IVA ${linked.suggestedTaxRate} %.` : undefined))
+                : undefined
+            }
+          >
             <Select id="r-tax" value={form.taxTreatment} onChange={(e) => setForm({ ...form, taxTreatment: e.target.value as ReceiptTaxTreatment })}>
               {(Object.keys(TAX_TREATMENT_LABEL) as ReceiptTaxTreatment[]).map((t) => (
                 <option key={t} value={t}>
